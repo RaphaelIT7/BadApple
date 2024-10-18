@@ -1,6 +1,3 @@
-# BadApple!! Ascii Test
-
-from PIL import Image
 import time
 import threading
 
@@ -9,14 +6,12 @@ from ffpyplayer.player import MediaPlayer
 import os
 import yt_dlp
 import ffmpeg
-import decord
-import numpy as np
 import dearpygui.dearpygui as dpg
 import yt_dlp.downloader
 from performance import PerfObject, performanceThread
-from renderer import renderThread, SetVideo
+from renderer import renderThread, SetVideo, GetFrameCount
 from converter import converterThread, GetFinalFrame
-from executor import Shutdown, GetRenderFrameCount, SetAudioFrameCount, ShouldRun
+from executor import Shutdown, GetRenderFrameCount, SetAudioFrameCount, ShouldRun, GetFPS
 
 frametime = 1
 main_thread = threading.current_thread()
@@ -51,7 +46,7 @@ def shutdown():
 
 def player():
     try:
-        global video, frametime, player, int_count, last_frame, running, sleep, skipped_frames, perfThread, fps, file
+        global frametime, player, int_count, last_frame, running, sleep, skipped_frames, perfThread, fps, file
 
         global image_txt, stats_txt
 
@@ -91,18 +86,13 @@ def player():
             else:
                 file = new_file
 
-                    
-
-        video = decord.VideoReader(file, decord.cpu(0), -1, -1, 4)
-        fps = 1 / video.get_avg_fps()
-
-        SetVideo(video)
-
+        SetVideo(file, 1)
 
         options = {"sync" : "audio", "framedrop" : True, "volume" : 0.1, "vn" : True, "sn" : True}
         player = MediaPlayer(file, ff_opts = options)
 
-        total_frames = len(video)
+        fps = GetFPS()
+        total_frames = GetFrameCount()
 
         int_count = 0
         last_frame = -1
@@ -111,8 +101,7 @@ def player():
 
         perfThread = performanceThread()
         threads.append(perfThread)
-        threads.append(renderThread())
-        threads.append(renderThread()) # Two should be enouth
+        threads.append(renderThread()) # SetVideo second arg is the number of threads you will use. BUG: More = Worse performance? Idk why
         threads.append(converterThread())
         threads.append(converterThread())
         threads.append(converterThread())
@@ -141,10 +130,12 @@ def player():
                 time.sleep(sleep)
                 del perf2
 
+            perf_postupdate = PerfObject("Post Frame")
             last_frame = GetRenderFrameCount()
-            int_count = round(player.get_pts() / fps)
+            int_count = round(player.get_pts() / fps) # player.get_pts() is expensive. Call it a second time and there goes your performance.
             SetAudioFrameCount(int_count)
             perfThread.update(frametime, int_count, last_frame, skipped_frames, fps, stats_txt, player)
+            del perf_postupdate
             del perf
 
         shutdown()

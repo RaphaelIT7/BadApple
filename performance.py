@@ -1,5 +1,5 @@
 import dearpygui.dearpygui as dpg
-from executor import ShouldRun, GetPrecachedFrameCount, GetFinalFrameCount
+from executor import ShouldRun, GetPrecachedFrameCount, GetFinalFrameCount, GetFPS
 import threading
 import time
 
@@ -115,6 +115,7 @@ class performanceThread(threading.Thread):
                 self.maintime = round(1 / get_time("Main"))
 
             stats += f"FPS: {self.maintime}\n"
+            stats += f"Required FPS: {1 / GetFPS()}\n"
 
             if self.frametime != 0:
                 self.ft = round(1 / self.frametime)

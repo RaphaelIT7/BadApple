@@ -4,13 +4,10 @@ import time
 from performance import PerfObject
 from renderer import GetFrame, RemoveFrame, GetFrameCount
 from executor import ShouldRun, SetFrameCount, SetFinalFrameCount, GetFinalFrameCount
-import numpy as np
 
 # Coverter Thread
 #
 # This thread is used to convert read frames to ASCII so that they are ready to be displayed.
-
-threadLock = threading.Lock()
 
 final_frames = None
 renderer_current_frame = 0
@@ -46,7 +43,7 @@ def GetFinalFrame(frame):
 
     return final_frames[renderer_current_frame]
 
-new_width = 1200 # Should be able to up to 1200
+new_width = 1200 # Should be able to up to 1200. BUG: Why does this Influence the render threads performance :< (PIL funny stuff)
 
 grey_chars = [
     '@', '#', '8', '&', 'B', '%', 'M', 'W', '*', 'o', 'a', 'h', 'k', 'b', 'd', 'p', 'q',
@@ -69,7 +66,7 @@ def resize_image(image):
     width, height = image.size
     ratio = height / width / 2.5 # This needs to be adjusted for different Videos
 
-    return image.resize((new_width, int(new_width * ratio)), Image.Resampling.BICUBIC, None, 1)
+    return image.resize((new_width, int(new_width * ratio)), Image.Resampling.NEAREST, None, 1)
 
 # convert pixels to greyscale
 def greyscaling(image):
@@ -93,12 +90,10 @@ class converterThread(threading.Thread):
         global backlog_current_frames, backlog_finished_frames
         while ShouldRun():
             perf = PerfObject("Converter")
-           # threadLock.acquire()
 
             frame_count = backlog_current_frames
             backlog_current_frames += 1
             if backlog_current_frames > GetFrameCount():
-                #threadLock.release()d
                 del perf
                 break
 
@@ -109,19 +104,14 @@ class converterThread(threading.Thread):
             if not ShouldRun():
                 break
 
-            #threadLock.release()
-
             new_image_data = new_pixel_convertor(greyscaling(resize_image(current_frame)))
             pixel_count = len(new_image_data)
             ascii_image = "\n".join(new_image_data[i:(i+new_width)] for i in range(0, pixel_count, new_width))
-
-            #threadLock.acquire()
 
             final_frames[frame_count] = ascii_image
             backlog_finished_frames += 1
             SetFinalFrameCount(backlog_finished_frames)
             #print(f"Final frame: {frame_count}")
     
-            #threadLock.release()
             RemoveFrame(frame_count)
             del perf

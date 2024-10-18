@@ -1,4 +1,4 @@
-A [FirstLemon](https://github.com/FirstLemon) started this project a while ago, and I optimized the living hell out of it xd
+[FirstLemon](https://github.com/FirstLemon) started this project a while ago, and I optimized the living hell out of it xd
 
 It can have stutters, but it mostly works / should work.
 

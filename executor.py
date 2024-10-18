@@ -38,3 +38,11 @@ def SetPrecachedFrameCount(frame):
 
 def GetPrecachedFrameCount():
     return precachedframe_count
+
+fps = 0
+def SetFPS(newFps):
+    global fps
+    fps = newFps
+
+def GetFPS():
+    return fps

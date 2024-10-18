@@ -1,18 +1,19 @@
-from executor import ShouldRun, GetRenderFrameCount, SetPrecachedFrameCount
+from executor import ShouldRun, GetRenderFrameCount, SetPrecachedFrameCount, SetFPS
 from performance import PerfObject
 from PIL import Image
 import threading
+import decord
 import time
 
 # Render Thread
 #
 # This thread is used to read the frames from the mp4 file and to precache them for the converter.
-
-threadLock = threading.Lock()
+# It's a wonder that we don't need any threadlocks. I would have expected it to crash with all the threads that write stuff but It's just working too well.
 
 read_frames = None
 precached_current_frames = 0
 precached_finished_frames = 0
+renderthreads_count = 0
 max_precache = 500 # Higher Number = Higher Memory Usage
 def GetPrecachedFrames():
     return precached_current_frames
@@ -26,20 +27,27 @@ def GetFrame(frame):
 
 def RemoveFrame(frame):
     perf = PerfObject("Remove Final Frame")
-    #threadLock.acquire()
-    read_frames[frame].close()
-    read_frames[frame] = None
-    #threadLock.release()
+
+    if read_frames[frame] is not None: # Rare case
+        read_frames[frame].close()
+        read_frames[frame] = None
+
     del perf
 
 def GetFrameCount():
     return framecount
 
-def SetVideo(vid):
-    global video, framecount, read_frames, precached_current_frames, precached_finished_frames
-    video = vid
-    framecount = len(vid)
+def SetVideo(file, threadcount):
+    global video, fps, framecount, read_frames, precached_current_frames, precached_finished_frames, fps
+    video = []
+    for x in range(0, threadcount):
+        # Each thread has it's own VideoReader.
+        # We need this because the VideoReader can only be used by one thread at a time and to workaround this, each thread will have it's own.
+        # We create them on the main thread since else they won't work.
+        video.append(decord.VideoReader(file, decord.cpu(0), -1, -1, 4))
+    framecount = len(video[0])
     read_frames = [None] * framecount
+    SetFPS(1 / video[0].get_avg_fps())
     precached_current_frames = 0
     precached_finished_frames = 0
 
@@ -48,7 +56,9 @@ class renderThread(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-        global precached_current_frames, precached_finished_frames
+        global precached_current_frames, precached_finished_frames, renderthreads_count
+        thread_id = renderthreads_count
+        renderthreads_count += 1
         while ShouldRun():
             perf = PerfObject("Renderer")
 
@@ -62,11 +72,9 @@ class renderThread(threading.Thread):
                 del perf
                 break
 
-            threadLock.acquire()
-
-            current_frame = video[frame_count] # The slowest part..... We need the locks because else decord will crash
-
-            threadLock.release()
+            perf_readframe = PerfObject("Read Frame")
+            current_frame = video[thread_id][frame_count] # A slow part...... TODO: Figure out why performance worsens with more threads.
+            del perf_readframe
 
             if current_frame is not None:
                 perf2 = PerfObject("Read Image")
