@@ -11,7 +11,7 @@ import yt_dlp.downloader
 from performance import PerfObject, performanceThread
 from renderer import renderThread, SetVideo, GetFrameCount
 from converter import converterThread, GetFinalFrame
-from executor import Shutdown, GetRenderFrameCount, SetAudioFrameCount, ShouldRun, GetFPS
+from executor import Shutdown, GetRenderFrameCount, SetAudioFrameCount, ShouldRun, GetFPS, SetRenderThreadCount, GetRenderThreadCount, SetConverterThreadCount, GetConverterThreadCount
 
 frametime = 1
 main_thread = threading.current_thread()
@@ -86,7 +86,9 @@ def player():
             else:
                 file = new_file
 
-        SetVideo(file, 1)
+        SetRenderThreadCount(1)
+        SetConverterThreadCount(6)
+        SetVideo(file)
 
         options = {"sync" : "audio", "framedrop" : True, "volume" : 0.1, "vn" : True, "sn" : True}
         player = MediaPlayer(file, ff_opts = options)
@@ -101,13 +103,11 @@ def player():
 
         perfThread = performanceThread()
         threads.append(perfThread)
-        threads.append(renderThread()) # SetVideo second arg is the number of threads you will use. BUG: More = Worse performance? Idk why
-        threads.append(converterThread())
-        threads.append(converterThread())
-        threads.append(converterThread())
-        threads.append(converterThread())
-        threads.append(converterThread())
-        threads.append(converterThread())
+        for _ in range(0, GetRenderThreadCount()):
+            threads.append(renderThread()) # SetVideo second arg is the number of threads you will use. BUG: More = Worse performance? Idk why
+
+        for _ in range(0, GetConverterThreadCount()):
+            threads.append(converterThread())
 
         for thread in threads:
             thread.start()

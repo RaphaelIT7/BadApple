@@ -1,5 +1,5 @@
 import dearpygui.dearpygui as dpg
-from executor import ShouldRun, GetPrecachedFrameCount, GetFinalFrameCount, GetFPS
+from executor import ShouldRun, GetPrecachedFrameCount, GetFinalFrameCount, GetFPS, GetRenderThreadCount, GetConverterThreadCount
 import threading
 import time
 
@@ -70,6 +70,8 @@ class performanceThread(threading.Thread):
         self.fps = 1 / 60 # Cap it at 60 until it gets set
         self.ft = 0
         self.maintime = 0
+        self.rendertime = 0
+        self.convertime = 0
     def update(self, frametime, frame, last_frame, skipped_frames, fps, stats_txt, player):
         if frametime is not None:
             self.frametime = frametime
@@ -114,13 +116,19 @@ class performanceThread(threading.Thread):
             if get_time("Main") != 0:
                 self.maintime = round(1 / get_time("Main"))
 
-            stats += f"FPS: {self.maintime}\n"
-            stats += f"Required FPS: {1 / GetFPS()}\n"
+            if get_time("Renderer") != 0:
+                self.rendertime = round(1 / (get_time("Renderer") / GetRenderThreadCount()))
+
+            if get_time("Converter") != 0:
+                self.convertime = round(1 / (get_time("Converter") / GetConverterThreadCount()))
 
             if self.frametime != 0:
                 self.ft = round(1 / self.frametime)
 
-            stats += f"Possible FPS: {self.ft}\n"
+            stats += f"FPS: {self.maintime}\n"
+            stats += f"Required FPS: {1 / GetFPS()}\n"
+            stats += f"Renderer FPS: {self.rendertime}\n"
+            stats += f"Converter FPS: {self.convertime}\n" # If this is below Required FPS, we may start to fall behind.
 
             stats += "\n\n"
             stats += format_timing_string(code_timing)

@@ -1,6 +1,5 @@
-from executor import ShouldRun, GetRenderFrameCount, SetPrecachedFrameCount, SetFPS
+from executor import ShouldRun, GetRenderFrameCount, SetPrecachedFrameCount, SetFPS, GetRenderThreadCount
 from performance import PerfObject
-from PIL import Image
 import threading
 import decord
 import time
@@ -26,10 +25,9 @@ def GetFrame(frame):
     return read_frames[frame]
 
 def RemoveFrame(frame):
-    perf = PerfObject("Remove Final Frame")
+    perf = PerfObject("Remove Original Frame")
 
     if read_frames[frame] is not None: # Rare case
-        read_frames[frame].close()
         read_frames[frame] = None
 
     del perf
@@ -37,10 +35,10 @@ def RemoveFrame(frame):
 def GetFrameCount():
     return framecount
 
-def SetVideo(file, threadcount):
+def SetVideo(file):
     global video, fps, framecount, read_frames, precached_current_frames, precached_finished_frames, fps
     video = []
-    for x in range(0, threadcount):
+    for x in range(0, GetRenderThreadCount()):
         # Each thread has it's own VideoReader.
         # We need this because the VideoReader can only be used by one thread at a time and to workaround this, each thread will have it's own.
         # We create them on the main thread since else they won't work.
@@ -77,16 +75,12 @@ class renderThread(threading.Thread):
             del perf_readframe
 
             if current_frame is not None:
-                perf2 = PerfObject("Read Image")
-                img = Image.fromarray(current_frame.asnumpy())
-
                 perf3 = PerfObject("Add Image")
-                read_frames[frame_count] = img
+                read_frames[frame_count] = current_frame
                 precached_finished_frames += 1
                 SetPrecachedFrameCount(precached_finished_frames)
                 #print(f"Read frame: {frame_count}")
 
                 del perf3
-                del perf2
 
             del perf

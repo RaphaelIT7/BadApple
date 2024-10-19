@@ -43,7 +43,7 @@ def GetFinalFrame(frame):
 
     return final_frames[renderer_current_frame]
 
-new_width = 1200 # Should be able to up to 1200. BUG: Why does this Influence the render threads performance :< (PIL funny stuff)
+new_width = 1200 # Should be able to up to 1200. BUG: Why does this Influence the render threads performance :<
 
 grey_chars = [
     '@', '#', '8', '&', 'B', '%', 'M', 'W', '*', 'o', 'a', 'h', 'k', 'b', 'd', 'p', 'q',
@@ -75,9 +75,8 @@ def greyscaling(image):
 
 # convert pixel to greyscale as desired
 def new_pixel_convertor(image):
-    perf = PerfObject("Pixel Converter")
-    
-    return "".join([characters[pixel] for pixel in image.getdata()])
+    perf = PerfObject("Pixel To ASCII")
+    return "".join([characters[pixel] for pixel in image.getdata()]) # This is the slowest part
 
 class converterThread(threading.Thread):
     def __init__(self):
@@ -99,7 +98,11 @@ class converterThread(threading.Thread):
 
             current_frame = GetFrame(frame_count)
             if current_frame is None:
-                print("Wait what")
+                continue # No Frame? I don't care.
+
+            perf2 = PerfObject("Read Image")
+            current_frame = Image.fromarray(current_frame.asnumpy()) # .asnumpy is slow :<
+            del perf2
 
             if not ShouldRun():
                 break
@@ -113,5 +116,6 @@ class converterThread(threading.Thread):
             SetFinalFrameCount(backlog_finished_frames)
             #print(f"Final frame: {frame_count}")
     
+            current_frame.close()
             RemoveFrame(frame_count)
             del perf
