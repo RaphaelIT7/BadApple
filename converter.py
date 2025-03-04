@@ -4,6 +4,8 @@ import time
 from performance import PerfObject
 from renderer import GetFrame, RemoveFrame, GetFrameCount
 from executor import ShouldRun, SetFrameCount, SetFinalFrameCount, GetFinalFrameCount
+#from multiprocessing import Pool # it literally nuked my PC & GPU by spawning 300+ processes XD
+from pixel_converter import pixel_to_ascii
 
 # Coverter Thread
 #
@@ -43,7 +45,7 @@ def GetFinalFrame(frame):
 
     return final_frames[renderer_current_frame]
 
-new_width = 1200 # Should be able to up to 1200. BUG: Why does this Influence the render threads performance :<
+new_width = 1400 # Should be able to up to 1300. BUG: Why does this Influence the render threads performance :<
 
 grey_chars = [
     '@', '#', '8', '&', 'B', '%', 'M', 'W', '*', 'o', 'a', 'h', 'k', 'b', 'd', 'p', 'q',
@@ -66,7 +68,7 @@ def resize_image(image):
     width, height = image.size
     ratio = height / width / 2.5 # This needs to be adjusted for different Videos
 
-    return image.resize((new_width, int(new_width * ratio)), Image.Resampling.NEAREST, None, 1)
+    return image.resize((new_width, int(new_width * ratio)), Image.Resampling.BICUBIC, None, 1) # Use Image.Resampling.NEAREST for speed if we don't upscale.
 
 # convert pixels to greyscale
 def greyscaling(image):
@@ -76,7 +78,7 @@ def greyscaling(image):
 # convert pixel to greyscale as desired
 def new_pixel_convertor(image):
     perf = PerfObject("Pixel To ASCII")
-    return "".join([characters[pixel] for pixel in image.getdata()]) # This is the slowest part
+    return pixel_to_ascii(image.tobytes()) # This is the slowest part
 
 class converterThread(threading.Thread):
     def __init__(self):

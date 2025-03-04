@@ -16,6 +16,7 @@ import time
 # NOTE: Never use the perf variable and don't use it global or save it anywhere else
 # BUG: Inside for or while loops, use del to delete the Object! or else the performance report might bug out!
 
+lock = threading.Lock() # I want to get rid of this.
 code_timing = {}
 active_scope = {}
 class PerfObject:
@@ -39,9 +40,11 @@ class PerfObject:
             current_dict = current_dict['children']
 
         last_category = categories[-1]
-        last_category_data = current_dict.setdefault(last_category, {'time': 0.0, 'count': 1, 'children': {}})
-        last_category_data['time'] += elapsed_time
-        last_category_data['count'] += 1
+
+        with lock:
+            last_category_data = current_dict.setdefault(last_category, {'time': 0.0, 'count': 1, 'children': {}})
+            last_category_data['time'] += elapsed_time
+            last_category_data['count'] += 1
 
         if categories:
             categories.pop()

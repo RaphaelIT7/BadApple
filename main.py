@@ -123,7 +123,7 @@ def player():
             #if (frametime > fps):
             #    print("LAG!")
 
-            sleep = (fps - (frametime * 2) - 0.005) / 4 # Running four times per frame should allow us to play frames that would otherwise be skipped
+            sleep = (fps - (frametime * 2) - 0.005) / 16 # Running four times per frame should allow us to play frames that would otherwise be skipped.
 
             if sleep > 0:
                 perf2 = PerfObject("Sleep")
@@ -143,24 +143,29 @@ def player():
     except KeyboardInterrupt:
         shutdown()
 
-# Textscreen
-dpg.create_context()
+def init():
+    global small_font, normal_font
+    # Textscreen
+    dpg.create_context()
 
-with dpg.font_registry():
-    small_font = dpg.add_font("ProggyClean.ttf", 2.5)
-    normal_font = dpg.add_font("ProggyClean.ttf", 13)
+    with dpg.font_registry():
+        small_font = dpg.add_font("ProggyClean.ttf", 2.5)
+        normal_font = dpg.add_font("ProggyClean.ttf", 13)
 
-with dpg.window(tag="Primary", label="sex"):
-    button = dpg.add_button(label="Run", callback=player)
-    dpg.bind_item_font(button, normal_font)
+    with dpg.window(tag="Primary", label="sex"):
+        button = dpg.add_button(label="Run", callback=player)
+        dpg.bind_item_font(button, normal_font)
 
-dpg.create_viewport(resizable=True)
-dpg.setup_dearpygui()
-dpg.set_primary_window("Primary", True)
-dpg.show_viewport()
-try: # Handle crashes. If we want to close it, it should close and not crash.
-    dpg.start_dearpygui()
-except:
-    pass
+    dpg.create_viewport(resizable=True)
+    dpg.setup_dearpygui()
+    dpg.set_primary_window("Primary", True)
+    dpg.show_viewport()
+    try: # Handle crashes. If we want to close it, it should close and not crash.
+        dpg.start_dearpygui()
+    except:
+        pass
 
-shutdown()
+    shutdown()
+
+if __name__ == "__main__": # If we spawn new processes we DONT want them to open a gpu each time.... my poor gpu still fears what happened last time.
+    init()
