@@ -10,8 +10,9 @@ import dearpygui.dearpygui as dpg
 import yt_dlp.downloader
 from performance import PerfObject, performanceThread
 from renderer import renderThread, SetVideo, GetFrameCount
-from converter import converterThread, GetFinalFrame
-from executor import Shutdown, GetRenderFrameCount, SetAudioFrameCount, ShouldRun, GetFPS, SetRenderThreadCount, GetRenderThreadCount, SetConverterThreadCount, GetConverterThreadCount
+from converter import converterThread, GetFinalFrame, SetFinalFrame, InitConverter, SetFinalFrameCount
+from executor import Shutdown, GetRenderFrameCount, SetFontSize, GetFontSize, SetAudioFrameCount, ShouldRun, GetFPS, SetRenderThreadCount, GetRenderThreadCount, SetConverterThreadCount, GetConverterThreadCount
+from filewriter import AddFrameToSave, fileReadThread, fileWriteThread
 
 frametime = 1
 main_thread = threading.current_thread()
@@ -32,6 +33,7 @@ def main(count, frame):
     newText = GetFinalFrame(1)
     if (newText is not None):
         set_text(newText)
+        AddFrameToSave(GetRenderFrameCount(), newText)
 
 
 file = "Touhou - Bad Apple.mp4"
@@ -87,11 +89,14 @@ def player():
                 file = new_file
 
         SetRenderThreadCount(1)
-        SetConverterThreadCount(6)
+        SetConverterThreadCount(10)
         SetVideo(file)
 
         options = {"sync" : "audio", "framedrop" : True, "volume" : 0.1, "vn" : True, "sn" : True}
         player = MediaPlayer(file, ff_opts = options)
+
+        if os.path.exists("lastRender") == False:
+            os.mkdir("lastRender")
 
         fps = GetFPS()
         total_frames = GetFrameCount()
@@ -101,18 +106,30 @@ def player():
         skipped_frames = 0
         running = True
 
+        InitConverter()
+
         perfThread = performanceThread()
         threads.append(perfThread)
-        for _ in range(0, GetRenderThreadCount()):
-            threads.append(renderThread()) # SetVideo second arg is the number of threads you will use. BUG: More = Worse performance? Idk why
 
-        for _ in range(0, GetConverterThreadCount()):
-            threads.append(converterThread())
+        generate = True
+        justgenerate = False # If true it will generate the frames & write them out, it wont play audio or such.
+        if generate:
+            for _ in range(0, GetRenderThreadCount()):
+                threads.append(renderThread()) # SetVideo second arg is the number of threads you will use. BUG: More = Worse performance? Idk why
+
+            for _ in range(0, GetConverterThreadCount()):
+                threads.append(converterThread())
+
+            for _ in range(0, 6):
+                threads.append(fileWriteThread())
+        else: # If were not generating we want to read it from disk.
+            for _ in range(0, 1):
+                threads.append(fileReadThread())
 
         for thread in threads:
             thread.start()
 
-        while (int_count <= total_frames) and ShouldRun():
+        while ShouldRun():
             perf = PerfObject("Main")
 
             t0 = time.perf_counter()
@@ -120,15 +137,15 @@ def player():
             t1 = time.perf_counter()
 
             frametime = (t1 - t0)
-            #if (frametime > fps):
-            #    print("LAG!")
+            if (frametime > fps):
+                print("LAG!")
 
             sleep = (fps - (frametime * 2) - 0.005) / 16 # Running four times per frame should allow us to play frames that would otherwise be skipped.
 
             if sleep > 0:
-                perf2 = PerfObject("Sleep")
-                time.sleep(sleep)
-                del perf2
+               perf2 = PerfObject("Sleep")
+               time.sleep(sleep)
+               del perf2
 
             perf_postupdate = PerfObject("Post Frame")
             last_frame = GetRenderFrameCount()
@@ -148,8 +165,10 @@ def init():
     # Textscreen
     dpg.create_context()
 
+    SetFontSize(2.5) # you can't go below 1
+
     with dpg.font_registry():
-        small_font = dpg.add_font("ProggyClean.ttf", 2.5)
+        small_font = dpg.add_font("ProggyClean.ttf", GetFontSize())
         normal_font = dpg.add_font("ProggyClean.ttf", 13)
 
     with dpg.window(tag="Primary", label="sex"):

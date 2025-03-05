@@ -62,3 +62,11 @@ def SetConverterThreadCount(count):
 
 def GetConverterThreadCount():
     return converterthreadcount
+
+fontSize = 0
+def SetFontSize(size):
+    global fontSize
+    fontSize = size
+
+def GetFontSize():
+    return fontSize

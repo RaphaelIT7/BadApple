@@ -3,7 +3,7 @@ import threading
 import time
 from performance import PerfObject
 from renderer import GetFrame, RemoveFrame, GetFrameCount
-from executor import ShouldRun, SetFrameCount, SetFinalFrameCount, GetFinalFrameCount
+from executor import ShouldRun, SetFrameCount, SetFinalFrameCount, GetFinalFrameCount, GetFontSize
 #from multiprocessing import Pool # it literally nuked my PC & GPU by spawning 300+ processes XD
 from pixel_converter import pixel_to_ascii
 
@@ -16,7 +16,7 @@ renderer_current_frame = 0
 backlog_current_frames = 0
 backlog_finished_frames = 0
 def RemoveFinalFrame(frame):
-    if frame < 0:
+    if frame < 0 or frame > GetFrameCount():
         return
 
     perf = PerfObject("Remove Final Frame")
@@ -45,7 +45,14 @@ def GetFinalFrame(frame):
 
     return final_frames[renderer_current_frame]
 
-new_width = 1400 # Should be able to up to 1300. BUG: Why does this Influence the render threads performance :<
+def SetFinalFrame(frameNumber, text):
+    global final_frames, backlog_finished_frames
+    final_frames[frameNumber] = text
+
+    if backlog_finished_frames < frameNumber:
+        backlog_finished_frames = frameNumber
+
+new_width = 1400 # Should be able to up to 1300. BUG: Why does this Influence the render threads performance :< GLI. It's probably GLI. I need to get Python 3.14.0a4 running
 
 grey_chars = [
     '@', '#', '8', '&', 'B', '%', 'M', 'W', '*', 'o', 'a', 'h', 'k', 'b', 'd', 'p', 'q',
@@ -66,7 +73,7 @@ for i in range(256):
 def resize_image(image):
     perf = PerfObject("Resize Image")
     width, height = image.size
-    ratio = height / width / 2.5 # This needs to be adjusted for different Videos
+    ratio = height / width / GetFontSize() # This needs to be adjusted for different Videos 2.7 = the font size
 
     return image.resize((new_width, int(new_width * ratio)), Image.Resampling.BICUBIC, None, 1) # Use Image.Resampling.NEAREST for speed if we don't upscale.
 
@@ -80,14 +87,16 @@ def new_pixel_convertor(image):
     perf = PerfObject("Pixel To ASCII")
     return pixel_to_ascii(image.tobytes()) # This is the slowest part
 
+def InitConverter():
+    global final_frames
+    final_frames = [None] * GetFrameCount()
+
 class converterThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
 
     def run(self):
         global final_frames
-        final_frames = [None] * GetFrameCount()
-
         global backlog_current_frames, backlog_finished_frames
         while ShouldRun():
             perf = PerfObject("Converter")

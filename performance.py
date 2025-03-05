@@ -64,7 +64,15 @@ def format_timing_string(data, indent=0):
 
 def get_time(category):
     cat = code_timing.get(category, {})
-    return cat.get("time", 0.0) / cat.get("count", 0.0)
+    time = cat.get("time", -1)
+    if time == -1:
+        return 0
+    
+    count = cat.get("count", -1)
+    if count == -1:
+        return 0
+
+    return time / count
 
 class performanceThread(threading.Thread):
     def __init__(self):
@@ -95,7 +103,7 @@ class performanceThread(threading.Thread):
         if stats_txt is not None:
             self.stats_txt = stats_txt
 
-        if frame is not None:
+        if player is not None:
             self.player = player
     def run(self):
         print ("Starting Stats Thread")
@@ -105,6 +113,7 @@ class performanceThread(threading.Thread):
                 continue
 
             if self.player is None:
+                print("Perf thread has no player!")
                 continue
 
             stats = "--- Stats ---\n"
