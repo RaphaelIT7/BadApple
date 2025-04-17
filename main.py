@@ -165,7 +165,7 @@ def init():
     # Textscreen
     dpg.create_context()
 
-    SetFontSize(2.5) # you can't go below 1
+    SetFontSize(1) # you can't go below 1
 
     with dpg.font_registry():
         small_font = dpg.add_font("ProggyClean.ttf", GetFontSize())
