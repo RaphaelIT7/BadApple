@@ -9,9 +9,8 @@ import ffmpeg
 import dearpygui.dearpygui as dpg
 import yt_dlp.downloader
 from performance import PerfObject, performanceThread
-from renderer import renderThread, SetVideo, GetFrameCount
-from converter import converterThread, GetFinalFrame, SetFinalFrame, InitConverter, SetFinalFrameCount
-from executor import Shutdown, GetRenderFrameCount, SetFontSize, GetFontSize, SetAudioFrameCount, ShouldRun, GetFPS, SetRenderThreadCount, GetRenderThreadCount, SetConverterThreadCount, GetConverterThreadCount
+from converter import converterThread, GetFinalFrame, InitConverter, SetVideo, GetFrameCount
+from executor import Shutdown, GetRenderFrameCount, SetFontSize, GetFontSize, SetAudioFrameCount, ShouldRun, GetFPS, SetConverterThreadCount, GetConverterThreadCount
 from filewriter import AddFrameToSave, fileReadThread, fileWriteThread
 
 frametime = 1
@@ -88,8 +87,7 @@ def player():
             else:
                 file = new_file
 
-        SetRenderThreadCount(1)
-        SetConverterThreadCount(10)
+        SetConverterThreadCount(2)
         SetVideo(file)
 
         options = {"sync" : "audio", "framedrop" : True, "volume" : 0.1, "vn" : True, "sn" : True}
@@ -114,9 +112,6 @@ def player():
         generate = True
         justgenerate = False # If true it will generate the frames & write them out, it wont play audio or such.
         if generate:
-            for _ in range(0, GetRenderThreadCount()):
-                threads.append(renderThread()) # SetVideo second arg is the number of threads you will use. BUG: More = Worse performance? Idk why
-
             for _ in range(0, GetConverterThreadCount()):
                 threads.append(converterThread())
 

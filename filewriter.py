@@ -1,7 +1,6 @@
 from executor import ShouldRun
 from performance import PerfObject
-from renderer import GetFrameCount
-from converter import SetFinalFrame, SetFinalFrameCount
+from converter import SetFinalFrame, SetFinalFrameCount, GetFrameCount
 import threading
 import time
 import os

@@ -47,14 +47,6 @@ def SetFPS(newFps):
 def GetFPS():
     return fps
 
-renderthreadcount = 0
-def SetRenderThreadCount(count):
-    global renderthreadcount
-    renderthreadcount = count
-
-def GetRenderThreadCount():
-    return renderthreadcount
-
 converterthreadcount = 0
 def SetConverterThreadCount(count):
     global converterthreadcount

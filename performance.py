@@ -1,5 +1,5 @@
 import dearpygui.dearpygui as dpg
-from executor import ShouldRun, GetPrecachedFrameCount, GetFinalFrameCount, GetFPS, GetRenderThreadCount, GetConverterThreadCount
+from executor import ShouldRun, GetPrecachedFrameCount, GetFinalFrameCount, GetFPS, GetConverterThreadCount
 import threading
 import time
 
@@ -81,8 +81,12 @@ class performanceThread(threading.Thread):
         self.fps = 1 / 60 # Cap it at 60 until it gets set
         self.ft = 0
         self.maintime = 0
-        self.rendertime = 0
         self.convertime = 0
+        self.last_frame = 0
+        self.skipped_frames = 0
+        self.frametime = 0
+        self.stats_txt = None
+        self.player = None
     def update(self, frametime, frame, last_frame, skipped_frames, fps, stats_txt, player):
         if frametime is not None:
             self.frametime = frametime
@@ -108,18 +112,11 @@ class performanceThread(threading.Thread):
     def run(self):
         print ("Starting Stats Thread")
         while ShouldRun():
-            if self.frame < 10:
-                time.sleep(self.fps)
-                continue
-
-            if self.player is None:
-                print("Perf thread has no player!")
-                continue
-
             stats = "--- Stats ---\n"
             stats += f"Current Frame: {self.frame}\n"
             stats += f"Last Frame: {self.last_frame}\n"
-            stats += f"Audio Frame: {round(self.player.get_pts() / self.fps)}\n"
+            if self.player is not None:
+                stats += f"Audio Frame: {round(self.player.get_pts() / self.fps)}\n"
             stats += f"Skipped Frames: {self.skipped_frames}\n"
             stats += f"Precached Frames: {GetPrecachedFrameCount()}\n"
             stats += f"Final Frames: {GetFinalFrameCount()}\n"
@@ -127,9 +124,6 @@ class performanceThread(threading.Thread):
             stats += "\n"
             if get_time("Main") != 0:
                 self.maintime = round(1 / get_time("Main"))
-
-            if get_time("Renderer") != 0:
-                self.rendertime = round(1 / (get_time("Renderer") / GetRenderThreadCount()))
 
             if get_time("Converter") != 0:
                 self.convertime = round(1 / (get_time("Converter") / GetConverterThreadCount()))
@@ -139,14 +133,14 @@ class performanceThread(threading.Thread):
 
             stats += f"FPS: {self.maintime}\n"
             stats += f"Required FPS: {1 / GetFPS()}\n"
-            stats += f"Renderer FPS: {self.rendertime}\n"
             stats += f"Converter FPS: {self.convertime}\n" # If this is below Required FPS, we may start to fall behind.
 
             stats += "\n\n"
             stats += format_timing_string(code_timing)
 
             try:
-                dpg.set_value(self.stats_txt, stats)
+                if self.stats_txt is not None:
+                    dpg.set_value(self.stats_txt, stats)
             except:
                 pass
             time.sleep(self.fps)

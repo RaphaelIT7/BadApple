@@ -2,10 +2,12 @@ from PIL import Image
 import threading
 import time
 from performance import PerfObject
-from renderer import GetFrame, RemoveFrame, GetFrameCount
-from executor import ShouldRun, SetFrameCount, SetFinalFrameCount, GetFinalFrameCount, GetFontSize
+from executor import ShouldRun, SetFrameCount, SetFinalFrameCount, GetFinalFrameCount, GetFontSize, GetConverterThreadCount, SetFPS
 #from multiprocessing import Pool # it literally nuked my PC & GPU by spawning 300+ processes XD
 from pixel_converter import pixel_to_ascii
+import decord
+import numpy as np
+from threading import Thread, Lock
 
 # Coverter Thread
 #
@@ -52,7 +54,7 @@ def SetFinalFrame(frameNumber, text):
     if backlog_finished_frames < frameNumber:
         backlog_finished_frames = frameNumber
 
-new_width = 1650 # Should be able to up to 1300. BUG: Why does this Influence the render threads performance :< GLI. It's probably GLI. I need to get Python 3.14.0a4 running
+new_width = 1650 # Should be able to up to 1300. BUG: Why does this Influence the render threads performance :< GIL. It's probably GIL. I need to get Python 3.14.0a4 running
 
 grey_chars = [
     '@', '#', '8', '&', 'B', '%', 'M', 'W', '*', 'o', 'a', 'h', 'k', 'b', 'd', 'p', 'q',
@@ -75,7 +77,7 @@ def resize_image(image):
     width, height = image.size
     ratio = height / width / GetFontSize() # This needs to be adjusted for different Videos 2.7 = the font size
 
-    return image.resize((new_width, int(new_width * ratio)), Image.Resampling.BICUBIC, None, 1) # Use Image.Resampling.NEAREST for speed if we don't upscale.
+    return image.resize((new_width, int(new_width * ratio)), Image.Resampling.NEAREST, None, 1) # Use Image.Resampling.NEAREST for speed if we don't upscale.
 
 # convert pixels to greyscale
 def greyscaling(image):
@@ -91,6 +93,19 @@ def InitConverter():
     global final_frames
     final_frames = [None] * GetFrameCount()
 
+def SetVideo(file):
+    global video, fps, framecount, read_frames, precached_current_frames, precached_finished_frames, fps
+    video = decord.VideoReader(file, decord.cpu(0), -1, -1, 4)
+    framecount = len(video)
+    read_frames = [None] * framecount
+    SetFPS(1 / video.get_avg_fps())
+    precached_current_frames = 0
+    precached_finished_frames = 0
+
+def GetFrameCount():
+    return framecount
+
+mutex = Lock()
 class converterThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -107,18 +122,24 @@ class converterThread(threading.Thread):
                 del perf
                 break
 
-            current_frame = GetFrame(frame_count)
+            perf_readframe = PerfObject("Read Frame")
+            current_frame = None
+            with (mutex): # BUG: decord crashes if multiple threads acess the same video instance
+                current_frame = video[frame_count] # A slow part...... TODO: Figure out why performance worsens with more threads.
+            # NOTE: A frame is utterly memory intensive
+            del perf_readframe
+
             if current_frame is None:
                 continue # No Frame? I don't care.
 
             perf2 = PerfObject("Read Image")
-            current_frame = Image.fromarray(current_frame.asnumpy()) # .asnumpy is slow :<
+            current_frame_img = Image.fromarray(current_frame.asnumpy()) # .asnumpy is slow :<
             del perf2
 
             if not ShouldRun():
                 break
 
-            new_image_data = new_pixel_convertor(greyscaling(resize_image(current_frame)))
+            new_image_data = new_pixel_convertor(greyscaling(resize_image(current_frame_img)))
             pixel_count = len(new_image_data)
             ascii_image = "\n".join(new_image_data[i:(i+new_width)] for i in range(0, pixel_count, new_width))
 
@@ -127,6 +148,8 @@ class converterThread(threading.Thread):
             SetFinalFrameCount(backlog_finished_frames)
             #print(f"Final frame: {frame_count}")
     
-            current_frame.close()
-            RemoveFrame(frame_count)
+            current_frame_img.close()
+            del new_image_data
+            del current_frame_img
+            del current_frame
             del perf
