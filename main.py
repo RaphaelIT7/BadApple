@@ -8,7 +8,7 @@ import yt_dlp
 import ffmpeg
 import dearpygui.dearpygui as dpg
 import yt_dlp.downloader
-from performance import PerfObject, performanceThread
+from performance import PerfObject, performanceThread, getProfilerText
 from converter import converterThread, GetFinalFrame, InitConverter, SetVideo, GetFrameCount
 from executor import Shutdown, GetRenderFrameCount, SetFontSize, GetFontSize, SetAudioFrameCount, ShouldRun, GetFPS, SetConverterThreadCount, GetConverterThreadCount
 from filewriter import AddFrameToSave, fileReadThread, fileWriteThread
@@ -20,6 +20,7 @@ threads = []
 def set_text(text):
     perf = PerfObject("Set Text")
     dpg.set_value(image_txt, text)
+    dpg.set_value(stats_txt, getProfilerText())
     del perf
 
 # Main Fucntion u stupid banana
@@ -72,6 +73,7 @@ def player():
 
         dpg.set_primary_window("Player", True)
         dpg.hide_item("Primary")
+        dpg.show_metrics()
 
         yt_opts = {
             'verbose': True,

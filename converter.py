@@ -54,7 +54,9 @@ def SetFinalFrame(frameNumber, text):
     if backlog_finished_frames < frameNumber:
         backlog_finished_frames = frameNumber
 
-new_width = 1650 # Should be able to up to 1300. BUG: Why does this Influence the render threads performance :< GIL. It's probably GIL. I need to get Python 3.14.0a4 running
+# Should be able to up to 1300. BUG: Why does this Influence the render threads performance :< GIL. It's probably GIL. I need to get Python 3.14.0a4 running
+# Update: Were running into a GPU bottleneck, our python code is fast enouth but the GPU is not. Were rending around 6.5 million verticies.
+new_width = 1500
 
 grey_chars = [
     '@', '#', '8', '&', 'B', '%', 'M', 'W', '*', 'o', 'a', 'h', 'k', 'b', 'd', 'p', 'q',

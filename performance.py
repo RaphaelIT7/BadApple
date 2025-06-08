@@ -74,6 +74,10 @@ def get_time(category):
 
     return time / count
 
+profilerText = ""
+def getProfilerText():
+    return profilerText
+
 class performanceThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -111,6 +115,7 @@ class performanceThread(threading.Thread):
             self.player = player
     def run(self):
         print ("Starting Stats Thread")
+        global profilerText
         while ShouldRun():
             stats = "--- Stats ---\n"
             stats += f"Current Frame: {self.frame}\n"
@@ -138,9 +143,5 @@ class performanceThread(threading.Thread):
             stats += "\n\n"
             stats += format_timing_string(code_timing)
 
-            try:
-                if self.stats_txt is not None:
-                    dpg.set_value(self.stats_txt, stats)
-            except:
-                pass
+            profilerText = stats
             time.sleep(self.fps)
