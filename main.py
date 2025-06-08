@@ -45,6 +45,17 @@ def shutdown():
     #player.close_player()
     dpg.destroy_context()
 
+def ProperFilePath(file):
+    if not file.endswith(".mp4"):
+        dot = file.rfind('.')
+        new_file = ""
+        if dot != -1:
+            new_file = file[:dot] + '.mp4'
+
+        return new_file
+    
+    return file
+
 def player():
     try:
         global frametime, player, int_count, last_frame, running, sleep, skipped_frames, perfThread, fps, file
@@ -64,13 +75,18 @@ def player():
 
         yt_opts = {
             'verbose': True,
+            'outtmpl': '%(title)s.%(ext)s',
             # 'outtmpl': '../Video/Cache',
         }
 
         if file.startswith("https://"):
             with yt_dlp.YoutubeDL(yt_opts) as ydl:
                 try:
-                    ydl.download(file)
+                    url = file
+                    info_dict = ydl.extract_info(file, download=False)
+                    file = ydl.prepare_filename(info_dict)
+                    if not os.path.exists(ProperFilePath(file)):
+                        ydl.download(url)
                 except:
                     pass
 
@@ -80,7 +96,7 @@ def player():
             if dot != -1:
                 new_file = file[:dot] + '.mp4'
 
-            if os.path.exists(file):
+            if os.path.exists(file) and not os.path.exists(new_file):
                 ffmpeg.input(file).output(new_file).run()
                 os.remove(file)
                 file = new_file
